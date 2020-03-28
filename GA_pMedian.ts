@@ -1,7 +1,7 @@
 import DeltaE = require('rgb-lab');
 import shuffle = require('knuth-shuffle');
 
-export default abstract class GA_pMeanSolver<T> {
+export default abstract class GA_pMedianSolver<T> {
     private density: number;
     
     /**
