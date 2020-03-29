@@ -12,6 +12,6 @@ An webpage to generate sharable QR codes for Animal Crossing from uploaded image
 Progess
 ------------
 1. Analyze the format of Animal Crossing QR codes(90%)
-2. Find the proper palette for any uploaded image(TODO)
+2. Find the proper palette for any uploaded image(60%)
 3. Generate QR codes(nayuki-lib)
 4. web UI(TODO)
