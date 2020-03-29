@@ -1,8 +1,11 @@
 import DeltaE = require('rgb-lab');
 import shuffle = require('knuth-shuffle');
+import std = require("tstl");
 
 export default abstract class GA_pMedianSolver<T> {
     private density: number;
+    private maxIter: number;
+    private population: Array<Array<T>>;
     
     /**
      * Creates an instance of GA_pMeanSolver.
@@ -19,6 +22,7 @@ export default abstract class GA_pMedianSolver<T> {
         private metric: (facility: T, demand: T) => number
     ) {
         this.density = Math.ceil(this.facilities.length / this.n);
+        this.maxIter = Math.ceil(this.demands.length * Math.sqrt(this.n));
     }
 
     public populationSize(): number {
@@ -27,29 +31,29 @@ export default abstract class GA_pMedianSolver<T> {
         return Math.max(2, Math.ceil(this.n * Math.log(s) / 100 / this.density)) * this.density
     }
 
-    public generatePopulations(size: number): Array<Array<T>> {
+    public generatePopulations(size: number){
         let increment = Math.floor(size / this.density); // k
-        let populations: Array<Array<T>> = new Array(size);
+        this.population = new Array(size);
 
         let idx = 0;
         for (let i = 0; i < Math.floor(this.facilities.length / this.n); i++) {
-            let population: Array<T> = new Array(this.n);
+            let pop: Array<T> = new Array(this.n);
             for (let j = 0; j < this.n; j++) {
-                population[j] = this.facilities[i * this.n + j]
+                pop[j] = this.facilities[i * this.n + j]
             }
-            populations[idx] = population;
+            this.population[idx] = pop;
             idx++;
         }
 
         // if n / p is not integer, fill the remaining slots with random facilities
         if (this.facilities.length % this.n > 0) {
-            let population: Array<T> = new Array(this.n);
+            let pop: Array<T> = new Array(this.n);
             let j = 0;
             for (let i = Math.floor(this.facilities.length / this.n) * this.n; i < this.facilities.length; i++) {
-                population[j] = this.facilities[i];
+                pop[j] = this.facilities[i];
                 j++;
             }
-            population = this.fillPopulation(population, j);
+            pop = this.fillPopulation(pop, j);
             idx++;
         }
 
@@ -65,14 +69,25 @@ export default abstract class GA_pMedianSolver<T> {
                 population[j] = this.facilities[pointer];
                 pointer += increment;
             }
-            populations[idx] = population;
+            this.population[idx] = population;
             idx++
         }
-
-        return populations
     }
 
     abstract isEqual(a: T, b: T): boolean;
+
+    public isIdenticalPop(a: Array<T>, b: Array<T>): boolean {
+        let hashA = a.map(this.hash);
+        let hashB = b.map(this.hash);
+        hashA.sort((char1, char2) => char2.localeCompare(char1))
+        hashB.sort((char1, char2) => char2.localeCompare(char1))
+
+        let result = true;
+        for (const [idx, a] of hashA.entries()) {
+            if (hashB[idx] != a) {result = false; break}
+        }
+        return result
+    }
 
     abstract hash(t: T): string;
 
@@ -100,22 +115,7 @@ export default abstract class GA_pMedianSolver<T> {
         return shuffle.knuthShuffle(populations.slice(0)).slice(0, 2)
     }
 
-    public intersect(array1: Array<T>, array2: Array<T>): Array<T> {
-        let intersection = new Array<T>();
-
-        array1.forEach(element1 => {
-            for (let i = 0; i < array2.length; i++) {
-                if (element1 = array2[i]) {
-                    intersection.push(element1);
-                    break
-                }
-            }
-        });
-
-        return intersection
-    }
-
-    public generationOp(parents: Array<T>[2]): Array<T> {
+    public generationOp(parents: Array<T>[2]): [Array<T>, number] {
         let genes0 = new ObjectSet(parents[0], this.isEqual, this.hash);
         let genes1 = new ObjectSet(parents[1], this.isEqual, this.hash);
 
@@ -172,13 +172,13 @@ export default abstract class GA_pMedianSolver<T> {
                     let closestFacility = gene;
                     for (const [idx1, gene1] of freeGenes.entries()) {
                         // skip the deleted gene
-                        if (idx1 == idx) {continue}
+                        if (idx1 == idx) {continue};
                         let distance = this.metric(gene1, demand);
                         if (distance < minDistance) {
                             minDistance = distance;
                             closestFacility = gene1;
-                        }
-                    }
+                        };
+                    };
 
                     increasedFitness += minDistance - distances[this.hash(gene)][this.hash(demand)];
                     let key = this.hash(closestFacility);
@@ -190,7 +190,7 @@ export default abstract class GA_pMedianSolver<T> {
                     minIncreasedFitness = increasedFitness;
                     idxOfGeneToRemove = idx;
                     distancesUpdate = update;
-                }
+                };
             }
 
             // the gene to remove is found, remove it
@@ -199,12 +199,58 @@ export default abstract class GA_pMedianSolver<T> {
                 map.forEach((demand, distance) => {
                     distances[gene].set(demand, distance);
                 });
-            })
+            });
             freeGenes.splice(idxOfGeneToRemove, 1);
         }
 
-        return freeGenes
+        let fitness = 0;
+        distances.forEach((facility, _) => {
+            facility.forEach((distance, _) => {
+                fitness += distance;
+            });
+        });
+
+        return [freeGenes, fitness]
     }
+
+    public fitness(genes: Array<T>): number {
+        let fitness = 0;
+        this.demands.forEach(demand => {
+            let minDistance = Number.MIN_VALUE;
+            genes.forEach(facility => {
+                let distance = this.metric(facility, demand);
+                if (distance < minDistance) {minDistance = distance;}
+            });
+            fitness += minDistance;
+        });
+        return fitness
+    }
+
+public replacementOp(candidate: Array<T>, candidateFitness: number, fitnessQue: std.PriorityQueue<[number, number]>) {
+    let idx = 0;
+    let maxFitness = 0;
+    [idx, maxFitness] = fitnessQue.top();
+
+    /**
+     * Step 1. If fitness value of the input candidate member is higher than the maximum fitness
+     * value in the population, then discard this candidate member and terminate this
+     * operator
+     */
+    if (candidateFitness >= maxFitness) {return}
+
+    /**
+     * Step 2. If the candidate member is identical to an existing member of the current popu
+     * lation, then discard this candidate member and terminate this operator.
+     */
+    for (const [_, pop] of this.population.entries()) {
+        if (this.isIdenticalPop(candidate, pop)) {return}
+    }
+
+    // Step 3. Replace the worst member and update population
+    fitnessQue.pop();
+    this.population.splice(idx, 1, candidate);
+    fitnessQue.push([idx, candidateFitness]);
+}
 
     /**
      * Combination (n, k)
