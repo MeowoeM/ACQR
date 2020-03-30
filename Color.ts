@@ -160,6 +160,26 @@ export const colorMap: Record<string, Number> = {
     '#224422': parseInt('f8', 16)
 } as const;
 
+export function hex2rgb(hex: string): number {
+    let rgb = new Number[3];
+    let bigInt = parseInt(hex.slice(1), 16);
+    rgb[0] = (bigInt >> 16) & 255;
+    rgb[1] = (bigInt >> 8) & 255;
+    rgb[2] = bigInt & 255;
+    return rgb
+}
+
+export function rgb2hex(rgb: [number, number, number]): string {
+    return "#" + ((1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]).toString(16).slice(1);
+}
+
+export function isEqualRGB(color1, color2): boolean {
+    if (color1[0] != color2[0]) {return false}
+    if (color1[1] != color2[1]) {return false}
+    if (color1[2] != color2[2]) {return false}
+    return true
+}
+
 export class RGB {
     private _rgb: [number, number, number];
     public get rgb(): [number, number, number] {
