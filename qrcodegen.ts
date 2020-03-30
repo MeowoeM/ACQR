@@ -946,7 +946,7 @@ namespace qrcodegen {
 		
 	}
 	
-}
+};
 
 
 

@@ -159,3 +159,29 @@ export const colorMap: Record<string, Number> = {
     '#008800': parseInt('f7', 16),
     '#224422': parseInt('f8', 16)
 } as const;
+
+export class RGB {
+    private _rgb: [number, number, number];
+    public get rgb(): [number, number, number] {
+        return this._rgb;
+    }
+    public set rgb(value: [number, number, number]) {
+        this._rgb = value;
+    }
+
+    public constructor(colorHex: string) {
+        let bigInt = parseInt(colorHex.slice(1), 16);
+        this._rgb[0] = (bigInt >> 16) & 255;
+        this._rgb[1] = (bigInt >> 8) & 255;
+        this._rgb[2] = bigInt & 255;
+    };
+
+    public isEqual(color: RGB): boolean {
+        if (this._rgb[0] != color._rgb[0]) {return false}
+        if (this._rgb[1] != color._rgb[0]) {return false}
+        if (this._rgb[2] != color._rgb[0]) {return false}
+        return true
+    }
+
+    public hash(): number {return (this._rgb[0] << 16) + (this._rgb[1] << 8) + this._rgb[2]};
+}

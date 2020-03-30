@@ -1,11 +1,42 @@
-import DeltaE = require('rgb-lab');
 import shuffle = require('knuth-shuffle');
 import std = require("tstl");
 
-export default abstract class GA_pMedianSolver<T> {
-    private density: number;
-    private maxIter: number;
-    private population: Array<Array<T>>;
+/**
+ * P-median solver, an janky implementation of 
+ * https://link.springer.com/content/pdf/10.1023/A:1026130003508.pdf
+ *
+ * @export
+ * @class GA_pMedianSolver
+ * @template T
+ */
+export class GA_pMedianSolver<T> {
+    public get demands(): Array<T> {
+        return this._demands;
+    }
+
+    public get facilities(): Array<T> {
+        return this._facilities;
+    }
+
+    private _density: number;
+    public get density(): number {
+        return this._density;
+    }
+
+    private _maxIter: number;
+    public get maxIter(): number {
+        return this._maxIter;
+    }
+
+    private _population: Array<Array<T>>;
+    public get population(): Array<Array<T>> {
+        return this._population;
+    }
+
+    private _populationSize: number;
+    public get populationSize(): number {
+        return this._populationSize;
+    }
     
     /**
      * Creates an instance of GA_pMeanSolver.
@@ -16,24 +47,27 @@ export default abstract class GA_pMedianSolver<T> {
      * @memberof GA_pMeanSolver
      */
     constructor(
-        private demands: Array<T>,
-        private facilities: Array<T>,
+        private _demands: Array<T>,
+        private _facilities: Array<T>,
         private n: number,
-        private metric: (facility: T, demand: T) => number
+        private metric: (facility: T, demand: T) => number,
+        private isEqual: (a: T, b: T) => boolean,
+        private hash: (t: T) => string
     ) {
-        this.density = Math.ceil(this.facilities.length / this.n);
-        this.maxIter = Math.ceil(this.demands.length * Math.sqrt(this.n));
+        this._density = Math.ceil(this.facilities.length / this.n);
+        this._maxIter = Math.ceil(this.demands.length * Math.sqrt(this.n));
+        this._populationSize = this.calcPopulationSize();
     }
 
-    public populationSize(): number {
+    private calcPopulationSize(): number {
         let s = this.combination(this.n, this.facilities.length);
 
-        return Math.max(2, Math.ceil(this.n * Math.log(s) / 100 / this.density)) * this.density
+        return Math.max(2, Math.ceil(this.n * Math.log(s) / 100 / this._density)) * this._density
     }
 
     public generatePopulations(size: number){
-        let increment = Math.floor(size / this.density); // k
-        this.population = new Array(size);
+        let increment = Math.floor(size / this._density); // k
+        this._population = new Array(size);
 
         let idx = 0;
         for (let i = 0; i < Math.floor(this.facilities.length / this.n); i++) {
@@ -41,7 +75,7 @@ export default abstract class GA_pMedianSolver<T> {
             for (let j = 0; j < this.n; j++) {
                 pop[j] = this.facilities[i * this.n + j]
             }
-            this.population[idx] = pop;
+            this._population[idx] = pop;
             idx++;
         }
 
@@ -69,12 +103,10 @@ export default abstract class GA_pMedianSolver<T> {
                 population[j] = this.facilities[pointer];
                 pointer += increment;
             }
-            this.population[idx] = population;
+            this._population[idx] = population;
             idx++
         }
     }
-
-    abstract isEqual(a: T, b: T): boolean;
 
     public isIdenticalPop(a: Array<T>, b: Array<T>): boolean {
         let hashA = a.map(this.hash);
@@ -88,8 +120,6 @@ export default abstract class GA_pMedianSolver<T> {
         }
         return result
     }
-
-    abstract hash(t: T): string;
 
     private fillPopulation(population: Array<T>, start): Array<T> {
         let remainingFacilities = new Array<T>();
@@ -107,15 +137,16 @@ export default abstract class GA_pMedianSolver<T> {
         return population
     }
 
-    public getRandomElement(array: Array<T>): T {
-        return array[Math.floor(Math.random() * array.length)]
+    public selectParents(): [Array<T>, Array<T>] {
+        let idxes = new Array<number>(this._populationSize);
+        for (let idx = 0; idx < this._populationSize; idx++) {
+            idxes[idx] = idx;
+        }
+        let parentsIdx = shuffle.knuthShuffle(idxes).slice(0, 2);
+        return [this._population[parentsIdx[0]], this._population[parentsIdx[1]]]
     }
 
-    public selectParents(populations: Array<Array<T>>): Array<T>[2] {
-        return shuffle.knuthShuffle(populations.slice(0)).slice(0, 2)
-    }
-
-    public generationOp(parents: Array<T>[2]): [Array<T>, number] {
+    public generationOp(parents: [Array<T>, Array<T>]): [Array<T>, number] {
         let genes0 = new ObjectSet(parents[0], this.isEqual, this.hash);
         let genes1 = new ObjectSet(parents[1], this.isEqual, this.hash);
 
@@ -242,13 +273,13 @@ public replacementOp(candidate: Array<T>, candidateFitness: number, fitnessQue: 
      * Step 2. If the candidate member is identical to an existing member of the current popu
      * lation, then discard this candidate member and terminate this operator.
      */
-    for (const [_, pop] of this.population.entries()) {
+    for (const [_, pop] of this._population.entries()) {
         if (this.isIdenticalPop(candidate, pop)) {return}
     }
 
     // Step 3. Replace the worst member and update population
     fitnessQue.pop();
-    this.population.splice(idx, 1, candidate);
+    this._population.splice(idx, 1, candidate);
     fitnessQue.push([idx, candidateFitness]);
 }
 
@@ -271,6 +302,46 @@ public replacementOp(candidate: Array<T>, candidateFitness: number, fitnessQue: 
         }
 
         return result
+    }
+
+    public pMedian(): Array<T> {
+        this.generatePopulations(this._populationSize);
+
+
+        let compare = function (a: [number, number], b: [number, number]): boolean {
+            return a[1] > b[1]
+        }
+        
+        let fitnessQ = new std.PriorityQueue<[number, number]>(compare);
+        for (const [idx, pop] of this._population.entries()) {
+            let fitness = this.fitness(pop);
+            fitnessQ.push([idx, fitness]);
+        }
+
+        let iter = 0;
+        let best = this._population[fitnessQ.top()[0]];
+        while (iter < this._maxIter) {
+            // Randomly select two members from the current population.
+            let parents = this.selectParents();
+
+            // Run the Generation Operator
+            let candidate: Array<T>;
+            let candidateFitness: number;
+            [candidate, candidateFitness] = this.generationOp(parents);
+
+            // Run the Replacement Operator
+            this.replacementOp(candidate, candidateFitness, fitnessQ);
+
+            // If the best solution found so far has not changed, then increment MaxIter
+            let bestThisIter = this._population[fitnessQ.top()[0]];
+            if (this.isIdenticalPop(bestThisIter, best)) {
+                iter++;
+            }
+            else {
+                best = bestThisIter;
+            }
+        }
+        return best
     }
 }
 
