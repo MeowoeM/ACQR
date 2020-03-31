@@ -1,8 +1,3 @@
-import colorMap, { RGB } from './Color'
-import RGB from './Color'
-import GA_pMedianSolver from './GA_pMedian'
-import DeltaE = require('rgb-lab');
-
 
 "use strict";
 
@@ -164,7 +159,7 @@ namespace app {
         )
         qr.drawCanvas(6, 2, appendCanvas("ACQR-2"));
 
-        let imageData = new Array<number>();
+        let alphaThreshold = 128;
         document.getElementById('file-input').onchange = function (e) {
             loadImage(
               e.target.files[0],
@@ -175,24 +170,71 @@ namespace app {
                 canvas.height = img.height;
                 var context = canvas.getContext('2d');
                 context.drawImage(img, 0, 0);
-                imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                let opaqueBytes = new Array<[number, number, number]>();
+
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    if (imageData.data[i + 3] > alphaThreshold) {
+                        opaqueBytes.push([
+                            imageData.data[i + 0], 
+                            imageData.data[i + 1], 
+                            imageData.data[i + 2]
+                        ]);
+                    }
+                }
+
+                let paletteGamut = new Array<[number, number, number]>();
+                for (const colorHex in Color.colorMap) {
+                    paletteGamut.push(Color.hex2rgb(colorHex));
+                }
+                
+                let metric = (c1: [number, number, number], c2: [number, number, number]) => DeltaE.deltaE(DeltaE.rgb2lab(c1), DeltaE.rgb2lab(c2));
+                let paletteGenerator = new GA_pMedian.GA_pMedianSolver(
+                    opaqueBytes,
+                    paletteGamut,
+                    15,
+                    metric,
+                    Color.isEqualRGB,
+                    Color.rgb2hex
+                );
+
+                let palette = paletteGenerator.pMedian();
+
+                var canvas = document.createElement('canvas');
+                var context = canvas.getContext('2d');
+                var newImageData = context.createImageData(imageData);
+                for (let i = 0; i < newImageData.data.length; i += 4) {
+                    if (newImageData.data[i + 3] > alphaThreshold) {
+                        let thisColor = [
+                            newImageData.data[i + 0], 
+                            newImageData.data[i + 1], 
+                            newImageData.data[i + 2]
+                        ];
+                        let mindeltaE = Number.MAX_VALUE;
+                        let closestColor: [number, number, number];
+                        palette.forEach(color => {
+                            let deltaE = metric(thisColor, color);
+                            if (deltaE < mindeltaE) {
+                                mindeltaE = deltaE;
+                                closestColor = thisColor;
+                            }
+                        });
+                        newImageData.data[i + 0] = closestColor[0];
+                        newImageData.data[i + 1] = closestColor[1];
+                        newImageData.data[i + 2] = closestColor[2];
+                        newImageData.data[i + 3] = 255;
+                    }
+                    else {
+                        newImageData.data[i + 3] = 0;
+                    }
+                }
+                context.putImageData(newImageData, 0, 0);
                 console.log('done')
-              },
+                },
               { maxWidth: 600 } // Options
             )
-          }
-        console.log(imageData);
-	}
-	
-	function test1(): void {
-        let paletteGamut: Array<RGB> = [];
-        for (const colorHex in colorMap) {
-            paletteGamut.push(new RGB(colorHex));
         }
-        let paletteGenerator = GA_pMedianSolver(
-            
-        )
-    }
+	}
 	
 	
 	function appendHeading(text: string): void {
