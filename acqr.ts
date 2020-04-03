@@ -188,35 +188,38 @@ namespace app {
                     paletteGamut.push(Color.hex2rgb(colorHex));
                 }
                 
-                let metric = (c1: [number, number, number], c2: [number, number, number]) => DeltaE.deltaE(DeltaE.rgb2lab(c1), DeltaE.rgb2lab(c2));
-                let paletteGenerator = new GA_pMedian.GA_pMedianSolver(
+                let paletteGenerator = new pMedian.GA(
                     opaqueBytes,
                     paletteGamut,
                     15,
-                    metric,
+                    Color.deltaE,
                     Color.isEqualRGB,
-                    Color.rgb2hex
+                    Color.rgb2hex,
+                    Color.hex2rgb
                 );
-
+                console.log(opaqueBytes.length);
+                console.log(paletteGenerator.demands);
                 let palette = paletteGenerator.pMedian();
 
-                var canvas = document.createElement('canvas');
+                var canvas = appendCanvas('result');
+                canvas.width = imageData.width;
+                canvas.height = imageData.height;
                 var context = canvas.getContext('2d');
-                var newImageData = context.createImageData(imageData);
+                var newImageData = context.createImageData(imageData.width, imageData.height);
                 for (let i = 0; i < newImageData.data.length; i += 4) {
-                    if (newImageData.data[i + 3] > alphaThreshold) {
+                    if (imageData.data[i + 3] > alphaThreshold) {
                         let thisColor = [
-                            newImageData.data[i + 0], 
-                            newImageData.data[i + 1], 
-                            newImageData.data[i + 2]
+                            imageData.data[i + 0], 
+                            imageData.data[i + 1], 
+                            imageData.data[i + 2]
                         ];
-                        let mindeltaE = Number.MAX_VALUE;
+                        let minDistance = Number.MAX_VALUE;
                         let closestColor: [number, number, number];
                         palette.forEach(color => {
-                            let deltaE = metric(thisColor, color);
-                            if (deltaE < mindeltaE) {
-                                mindeltaE = deltaE;
-                                closestColor = thisColor;
+                            let distance = Color.EuclideanColorDistance(thisColor, color);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestColor = color;
                             }
                         });
                         newImageData.data[i + 0] = closestColor[0];
