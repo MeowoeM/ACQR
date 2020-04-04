@@ -18,6 +18,9 @@ namespace app {
 	
 	
 	function test(): void {
+        appendHeading("Variety");
+		let qr: qrcodegen.QrCode;
+		const QrCode = qrcodegen.QrCode;  // Abbreviation
 
         document.getElementById('file-input').onchange = function (e) {
             loadImage(
