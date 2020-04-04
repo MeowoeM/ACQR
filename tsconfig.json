@@ -6,5 +6,6 @@
         "es2019"
       ],
       "sourceMap": true,
+      "outFile": "script.js"
     }
   }
