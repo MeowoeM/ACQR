@@ -6,13 +6,45 @@
     </head>
 
     <body>  
-        <input type="file" id="file-input">
-        <div id="output"></div>
+        <h1>ACQR</h1>
+        <p>Generate QR code sharable in Animal Crossing from the input image</p>
+        <p>
+            Repo: <a href='https://github.com/MeowoeM/ACQR/'>https://github.com/MeowoeM/ACQR/</a>
+        </p>
+        <p>Useful link: <a href='https://acpatterns.com/editor'>Animal Crossing Pattern Tool</a></p>
 
+        <h3>Image file:</h3>
+        <input type="file" id="file-input">
+        <p>Title:</p>
+        <input type="text" id="title">
+        <p>Author:</p>
+        <input type="text" id="author">
+        <p>Town:</p>
+        <input type="text" id="town">
+
+        <h3>Settings:</h3>
+        <p>Color downsample rate:</p>
+        <input type="text" id="downsampleRate" placeholder="8">
+        <p>Downsample 255 kinds(channel-wise) to 255 / rate kinds to speed up calculation at the cost of accuracy.</p>
+        
+        <p>Alpha threshold:</p>
+        <input type="text" id="alphaThreshold" placeholder="128">
+        <p>pixels of alpha value above the threshold are converted to completely opaque one, those below completely transparent.</p>
+
+        <p>Metric:</p>
+        <input type="radio" id="deltaE" name="metric" checked>
+        <label for="deltaE">delta E</label><br>
+        <input type="radio" id="euclidean" name="metric">
+        <label for="Euclidean">RGB Euclidean</label><br>
+
+        <p>Max iteration:</p>
+        <input type="text" id="maxIter" placeholder="256">
+
+        <div id="output"></div>
         <script src="load-image.js"></script>
         <script type="application/javascript" src="Color.js"></script>
-        <script type="application/javascript" src="ObjectSet.js"></script>
-        <script type="application/javascript" src="bundle.js"></script>
+        <script type="application/javascript" src="misc.js"></script>
+        <script type="application/javascript" src="pMedian.js"></script>
         <script type="application/javascript" src="qrcodegen.js"></script>
         <script type="application/javascript" src="acqr.js"></script>
     </body>
