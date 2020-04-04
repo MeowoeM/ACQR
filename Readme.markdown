@@ -5,9 +5,9 @@ Generate sharable QR codes for Animal Crossing
 Introduction
 ------------
 
-Based on QR code generationg library [https://www.nayuki.io/page/qr-code-generator-library](https://www.nayuki.io/page/qr-code-generator-library). This should probably be the few that accept a raw-byte input.
+Based on QR code generationg library [https://www.nayuki.io/page/qr-code-generator-library](https://www.nayuki.io/page/qr-code-generator-library). This should probably be the few that accepts a raw-byte input.
 
-An webpage to generate sharable QR codes for Animal Crossing from uploaded images. 
+A webpage to generate sharable QR codes for Animal Crossing from uploaded images. 
 
 Progess
 ------------
