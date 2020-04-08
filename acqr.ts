@@ -5,7 +5,17 @@
         document.getElementById('downsampleRate').value = 8;
         document.getElementById('alphaThreshold').value = 128;
         document.getElementById('maxIter').value = 128;
-		test();
+        test();
+        
+        // collapsibles
+        document.addEventListener('DOMContentLoaded', function() {
+            let cardToggles = document.getElementsByClassName('card-toggle');
+            for (let i = 0; i < cardToggles.length; i++) {
+                cardToggles[i].addEventListener('click', e => {
+                    e.currentTarget.parentElement.parentElement.childNodes[3].classList.toggle('is-hidden');
+                });
+            }
+        });
 	}
 	
 	
@@ -68,8 +78,11 @@
               function (img) {
                 // temporarily disable the input during conversion
                 document.getElementById('file-input').disabled = true;
-
-                document.getElementById('output').appendChild(img);
+                let p = document.getElementById("output").appendChild(document.createElement("p"));
+                p.textContent = "Original:";
+                let figure = document.getElementById("output").appendChild(document.createElement("figure"));
+                figure.className += " image";
+                figure.appendChild(img);
                 imageData = readImage(img);
                 if (imageData.width % 32 > 0 || imageData.width % 32 > 0) {
                     alert('the input image must be able to split into 32 * 32 blocks!');
@@ -219,7 +232,7 @@
         palette: [number, number, number][], 
         metric: (rgbA: any, rgbB: any) => number
         ) {
-        var canvas = appendCanvas('result');
+        var canvas = appendCanvas('Converted');
         canvas.width = imageData.width;
         canvas.height = imageData.height;
         var context = canvas.getContext('2d');

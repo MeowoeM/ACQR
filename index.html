@@ -2,52 +2,170 @@
 <html>
 
     <head>
-        <title>ACQR | Generating sharable QR codes for Animal Crossing</title>\
+        <title>ACQR | Generating sharable QR codes for Animal Crossing</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css">
         <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     </head>
 
     <body>  
-        <h1>ACQR</h1>
-        <p>Generate QR code sharable in Animal Crossing from the input image</p>
-        <p>
-            Repo: <a href='https://github.com/MeowoeM/ACQR/'>https://github.com/MeowoeM/ACQR/</a>
-        </p>
-        <p>Useful link: <a href='https://acpatterns.com/editor'>Animal Crossing Pattern Tool</a></p>
-
-        <h3>Image file:</h3>
-        <input type="file" id="file-input">
-        <p>Generate Qrcodes according to the resolution of the input image. For example 4 qr codes will be generated from a a 64 * 64 image.<p>
-        <p>Conversion will start once an input image is chosen</p>
-        <div id="progress" style="overflow-y: scroll; height:400px;">
-            <h5>Conversion progess:</h5>
-        </div>
-        <p>Title:</p>
-        <input type="text" id="title">
-        <p>Author:</p>
-        <input type="text" id="author">
-        <p>Town:</p>
-        <input type="text" id="town">
-
-        <h3>Settings:</h3>
-        <p>Color downsample rate:</p>
-        <input type="text" id="downsampleRate" placeholder="8">
-        <p>Downsample 255 kinds(channel-wise) to 255 / rate kinds to speed up calculation at the cost of accuracy.</p>
+        <section class="hero is-info">
+            <div class="hero-body">
+                <div class="container">
+                    <h1 class="title is-size-1">
+                        ACQR
+                    </h1>
+                    <h2 class="subtitle">
+                        Generate QR codes sharable in Animal Crossing from the input image
+                    </h2>
+                    <a href="https://github.com/MeowoeM/ACQR/" class="button is-primary is-large">
+                        <span class="icon">
+                          <i class="fab fa-github"></i>
+                        </span>
+                        <span>Github</span>
+                    </a>
+                </div>
+            </div>
+        </section>
         
-        <p>Alpha threshold:</p>
-        <input type="text" id="alphaThreshold" placeholder="128">
-        <p>pixels of alpha value above the threshold are converted to completely opaque one, those below completely transparent.</p>
+        <!-- <p>Useful link: <a href='https://acpatterns.com/editor'>Animal Crossing Pattern Tool</a></p> -->
+      
+        <section class="has-background-white-ter">
+            <div class="container ">
+                <div class="columns">
+                    <div class="column">
+                        <h3 class="title is-size-3">Input</h3>
 
-        <p>Metric:</p>
-        <input type="radio" id="deltaE" name="metric" checked>
-        <label for="deltaE">delta E</label><br>
-        <input type="radio" id="euclidean" name="metric">
-        <label for="Euclidean">RGB Euclidean</label><br>
+                        <div class="box">
+                            <h4 class="title is-size-4">Image to Convert</h4>
+                            <div class="content">
+                                Generate Qrcodes according to the resolution of the input image. For example 4 QR codes will be generated from a a 64 * 64 image.
+                            </div>
+                            <div class="content">
+                                Conversion will start once an input image is chosen.
+                            </div>
+                            <div class="file">
+                                <label class="file-label">
+                                  <input class="file-input" type="file" name="resume" id="file-input">
+                                  <span class="file-cta">
+                                    <span class="file-icon">
+                                      <i class="fas fa-upload"></i>
+                                    </span>
+                                    <span class="file-label">
+                                      Choose a file…
+                                    </span>
+                                  </span>
+                                </label>
+                              </div>
+                        </div>
+                        
+                        <div class="box">
+                            <h4 class="title is-4">
+                                Meta Infos
+                            </h4>
+                            <div class="content">
+                                Don't forget to fill them, otherwise the Nintendo app cannot store the QR code!
+                            </div>
 
-        <p>Max iteration:</p>
-        <input type="text" id="maxIter" placeholder="256">
+                            <div class="field">
+                                <label class="label">Title</label>
+                                <div class="control">
+                                    <input class="input" type="text" placeholder="20 characters at most" id="title">
+                                </div>
+                            </div>
+                            
+                            <div class="field">
+                                <label class="label">Author</label>
+                                <div class="control">
+                                    <input class="input" type="text" placeholder="9 characters at most" id="author">
+                                </div>
+                            </div>
+                            
+                            <div class="field">
+                                <label class="label">Town</label>
+                                <div class="control">
+                                    <input class="input" type="text" placeholder="9 characters at most" id="town">
+                                </div>
+                            </div>
+                        </div>
 
-        <div id="output"></div>
+                        <div class="box">
+                            <h4 class="title is-size-4">Conversion Settings</h4>
+                            
+                            <div class="field">
+                                <label class="label">Color downsample rate</label>
+                                <div class="control">
+                                    <input class="input" type="text" id="downsampleRate">
+                                </div>
+                                <p>
+                                    Downsample 255 kinds(channel-wise) to 255 / rate kinds to speed up calculation at the cost of accuracy.
+                                </p>
+                            </div>
+
+                            <div class="field">
+                                <label class="label">Alpha threshold</label>
+                                <div class="control">
+                                    <input class="input" type="text" id="alphaThreshold">
+                                </div>
+                                <p>
+                                    pixels of alpha value above the threshold are converted to completely opaque one, those below completely transparent.
+                                </p>
+                            </div>
+
+                            <div class="field">
+                                <label class="label">Metric</label>
+                                <div class="field-body">
+                                    <div class="control">
+                                        <label class="radio">
+                                            <input type="radio" id="deltaE" name="metric" checked>
+                                            Delta E
+                                        </label>
+                                        <label class="radio">
+                                            <input type="radio" id="euclidean" name="metric">
+                                            RGB Euclidean
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>                  
+                            
+                            <div class="field">
+                                <label class="label">Max iteration</label>
+                                <div class="control">
+                                    <input class="input" type="text" id="maxIter">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column">
+                        <h3 class="title is-size-3">Output</h3>
+
+                        <div class="card is-fullwidth">
+                            <header class="card-header">
+                                <p class="card-header-title">Logs</p>
+                                <a class="card-header-icon card-toggle">
+                                    <i class="fa fa-angle-down"></i>
+                                </a>
+                            </header>
+                            <div class="card-content">
+                                <div id="progress" class="content" style="overflow-y: scroll; height:128px;">
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="box">
+                            <h4 class="title is-size-4">Results</h4>
+                            
+                            <div id="output"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        
         <script src="load-image.js"></script>
         <script type="application/javascript" src="Color.js"></script>
         <script type="application/javascript" src="misc.js"></script>
