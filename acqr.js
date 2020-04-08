@@ -65,7 +65,6 @@ function test() {
             let p = document.getElementById("output").appendChild(document.createElement("p"));
             p.textContent = "Original:";
             let figure = document.getElementById("output").appendChild(document.createElement("figure"));
-            figure.className += " image";
             figure.appendChild(img);
             imageData = readImage(img);
             if (imageData.width % 32 > 0 || imageData.width % 32 > 0) {
