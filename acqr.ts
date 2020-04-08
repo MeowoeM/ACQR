@@ -2,7 +2,6 @@
 
     function main(): void {
         // default values
-        document.getElementById('downsampleRate').value = 8;
         document.getElementById('alphaThreshold').value = 128;
         document.getElementById('maxIter').value = 128;
         test();
@@ -26,7 +25,6 @@
 
         let progress = document.getElementById("progress");
         let alphaThreshold: number;
-        let colorDownsamplingRate: number;
         let metric: string;
         let imageData;
         let nRow: number;
@@ -91,9 +89,9 @@
                 nCol = Math.round(imageData.width / 32);
 
                 alphaThreshold = parseInt(document.getElementById('alphaThreshold').value);
-                colorDownsamplingRate = parseInt(document.getElementById('downsampleRate').value);
+                let mode = document.getElementById('colorDownsampleMode').value;
 
-                let opaqueBytes = downsampleImage(imageData, alphaThreshold, colorDownsamplingRate);
+                let opaqueBytes = downsampleImage(imageData, alphaThreshold, mode);
                 
                 if (document.getElementById('deltaE').checked) {
                     metric = 'delta-e';
@@ -283,12 +281,12 @@
     //     return palette;
     // }
 
-    function downsampleImage(imageData: any, alphaThreshold: number, colorDownsamplingRate: number) {
+    function downsampleImage(imageData: any, alphaThreshold: number, mode: string) {
         let opaqueBytes = new Array<[number, number, number]>();
         for (let i = 0; i < imageData.data.length; i += 4) {
             if (imageData.data[i + 3] > alphaThreshold) {
                 // downsample to 12-bit color to speed up
-                opaqueBytes.push(downsamplePixel(imageData.data.slice(i, i + 3), colorDownsamplingRate));
+                opaqueBytes.push(downsamplePixel(imageData.data.slice(i, i + 3), mode));
             }
         }
         return opaqueBytes;
@@ -304,15 +302,40 @@
         return imageData;
     }
 
+    // http://threadlocalmutex.com/?page_id=60
 	function downsamplePixel(
         color: [number, number, number],
-        rate: number 
+        mode: string 
     ): [number, number, number] {
-        return [
-            Math.min(255, rate * Math.round(color[0] / rate)), 
-            Math.min(255, rate * Math.round(color[1] / rate)), 
-            Math.min(255, rate * Math.round(color[2] / rate))
-        ]
+        let newColor: [number, number, number] = [0, 0, 0];
+        if (mode === '4bit') {
+            for (let i = 0; i < color.length; i++) {
+                let tmp = (color[i] * 15 + 135) >> 8;
+                newColor[i] = tmp * 17;
+            }
+        }
+        else if (mode === '5bit') {
+            for (let i = 0; i < color.length; i++) {
+                let tmp = (color[i] * 249 + 1024) >> 11;
+                newColor[i] = (tmp * 527 + 23) >> 6;
+            }
+        }
+        else if (mode === '6bit') {
+            for (let i = 0; i < color.length; i++) {
+                let tmp = (color[i] * 253 + 512) >> 10;
+                newColor[i] = (tmp * 259 + 33) >> 6;
+            }
+        }
+        else if (mode === '7bit') {
+            for (let i = 0; i < color.length; i++) {
+                let tmp = (color[i] * 2 + 1) >> 2;
+                newColor[i] = (tmp * 257 + 64) >> 7;
+            }
+        }
+        else {
+            newColor = color;
+        }
+        return newColor
     }
 	
 	function appendHeading(text: string): void {

@@ -92,14 +92,24 @@
                             <h4 class="title is-size-4">Conversion Settings</h4>
                             
                             <div class="field">
-                                <label class="label">Color downsample rate</label>
-                                <div class="control">
-                                    <input class="input" type="text" id="downsampleRate">
+                                <label class="label">Color downsample</label>
+                                <div class="field-body">
+                                    <div class="control">
+                                        <div class="select">
+                                            <select id="colorDownsampleMode">
+                                                <option value="4bit">4-bit</option>
+                                                <option value="5bit" selected="selected">5-bit</option>
+                                                <option value="6bit">6-bit</option>
+                                                <option value="7bit">7-bit</option>
+                                                <option value="None">No Downsampling</option>
+                                            </select>
+                                        </div>                                        
+                                    </div>
                                 </div>
                                 <p>
-                                    Downsample 255 kinds(channel-wise) to 255 / rate kinds to speed up calculation at the cost of accuracy.
+                                    Downsample 8-bit color depth(channel-wise) to lower depth to speed up calculation at the cost of accuracy.
                                 </p>
-                            </div>
+                            </div> 
 
                             <div class="field">
                                 <label class="label">Alpha threshold</label>

@@ -5,6 +5,7 @@
       "lib": [
         "es2019",
         "webworker",
+        "DOM"
       ],
       "sourceMap": true,
       // "outFile": "script.js"
