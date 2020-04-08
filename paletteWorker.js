@@ -17,7 +17,6 @@ function log(entry) {
     });
 }
 onmessage = function (e) {
-    console.log(e.data.opaqueBytes);
     let palette = findPalette(e.data.opaqueBytes, e.data.paletteGamut, e.data.metricType, e.data.maxIter);
     postMessage({
         type: 'result',
