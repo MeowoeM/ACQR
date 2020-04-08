@@ -14,6 +14,7 @@
 		const QrCode = qrcodegen.QrCode;  // Abbreviation
         const worker = new Worker('./paletteWorker.js');
 
+        let progress = document.getElementById("progress");
         let alphaThreshold: number;
         let colorDownsamplingRate: number;
         let metric: string;
@@ -28,10 +29,7 @@
         worker.onmessage = function(e) {
             let type = e.data.type;
             if (type === 'log') {
-                let progress = document.getElementById("progress");
-                let p = progress.appendChild(document.createElement("p"));
-                p.textContent = e.data.contents;
-                progress.scrollTop = progress.scrollHeight;
+                updateProgress(progress, e.data.contents);
             }
             else if (type === 'result') {
                 let palette = e.data.contents;
@@ -60,11 +58,7 @@
 
                 // enable the input again after conversion
                 document.getElementById('file-input').disabled = false;
-
-                let progress = document.getElementById("progress");
-                let p = progress.appendChild(document.createElement("p"));
-                p.textContent = 'Done!';
-                progress.scrollTop = progress.scrollHeight;
+                updateProgress(progress, 'Done!');
             }
         }
 
@@ -107,6 +101,12 @@
               { maxWidth: 600 } // Options
             )
         }
+    }
+
+    function updateProgress(scrollable: any, content: string): void {
+        let p = scrollable.appendChild(document.createElement("p"));
+        p.textContent = content;
+        scrollable.scrollTop = scrollable.scrollHeight;
     }
 
     function makeQrContents(
