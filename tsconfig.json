@@ -3,9 +3,10 @@
       "target": "es6",
       // "module": "commonjs",
       "lib": [
-        "es2019"
+        "es2019",
+        "webworker",
       ],
       "sourceMap": true,
-      "outFile": "script.js"
+      // "outFile": "script.js"
     }
   }

@@ -1,12 +1,4 @@
-
 "use strict";
-
-
-namespace app {
-    
-    let outputElem = document.getElementById("output") as HTMLElement;
-    let colorMap = new Map();
-    // grayscale
 
     function main(): void {
         // default values
@@ -20,40 +12,36 @@ namespace app {
 	function test(): void {
 		let qr: qrcodegen.QrCode;
 		const QrCode = qrcodegen.QrCode;  // Abbreviation
+        const worker = new Worker('./paletteWorker.js');
 
-        document.getElementById('file-input').onchange = function (e) {
-            loadImage(
-              e.target.files[0],
-              function (img) {
-                document.getElementById('output').appendChild(img);
-                var imageData = readImage(img);
-                if (imageData.width % 32 > 0 || imageData.width % 32 > 0) {
-                    alert('the input image must be able to split into 32 * 32 blocks!');
-                    return
+        let alphaThreshold: number;
+        let colorDownsamplingRate: number;
+        let metric: string;
+        let imageData;
+        let nRow: number;
+        let nCol: number;
+        let paletteGamut = new Array<[number, number, number]>();
+        Color.colorMap.forEach((_, colorHex) => {
+            paletteGamut.push(Color.hex2rgb(colorHex));
+        });
+
+        worker.onmessage = function(e) {
+            let type = e.data.type;
+            if (type === 'log') {
+                let progress = document.getElementById("progress");
+                let p = progress.appendChild(document.createElement("p"));
+                p.textContent = e.data.contents;
+                progress.scrollTop = progress.scrollHeight;
+            }
+            else if (type === 'result') {
+                let palette = e.data.contents;
+                let context;
+                if (metric === 'euclidean') {
+                    context = applyPalette(imageData, alphaThreshold, palette, Color.EuclideanColorDistance);
                 }
-                const nRow = Math.round(imageData.height / 32);
-                const nCol = Math.round(imageData.width / 32);
-
-                const alphaThreshold = parseInt(document.getElementById('alphaThreshold').value);
-                const colorDownsamplingRate = parseInt(document.getElementById('downsampleRate').value);
-                
-                let paletteGamut = new Array<[number, number, number]>();
-                Color.colorMap.forEach((_, colorHex) => {
-                    paletteGamut.push(Color.hex2rgb(colorHex));
-                });
-
-                let opaqueBytes = downsampleImage(imageData, alphaThreshold, colorDownsamplingRate);
-                
-                let metric = Color.deltaE;
-                if (document.getElementById('deltaE').checked) {
-                    metric = Color.deltaE;
+                else {
+                    context = applyPalette(imageData, alphaThreshold, palette, Color.deltaE);
                 }
-                else if (document.getElementById('euclidean').checked) {
-                    metric = Color.EuclideanColorDistance;
-                }
-
-                let palette = findPalette(opaqueBytes, paletteGamut, metric);
-                let context = applyPalette(imageData, alphaThreshold, palette, metric);
                 
                 for (let rowIdx = 0; rowIdx < nRow; rowIdx++) {
                     for ( let colIdx = 0; colIdx < nCol; colIdx++) {
@@ -68,7 +56,53 @@ namespace app {
                         )
                         qr.drawCanvas(6, 2, appendCanvas(`(${rowIdx}, ${colIdx})`));
                     }
+                };
+
+                // enable the input again after conversion
+                document.getElementById('file-input').disabled = false;
+
+                let progress = document.getElementById("progress");
+                let p = progress.appendChild(document.createElement("p"));
+                p.textContent = 'Done!';
+                progress.scrollTop = progress.scrollHeight;
+            }
+        }
+
+        document.getElementById('file-input').onchange = function (e) {
+            loadImage(
+              e.target.files[0],
+              function (img) {
+                // temporarily disable the input during conversion
+                document.getElementById('file-input').disabled = true;
+
+                document.getElementById('output').appendChild(img);
+                imageData = readImage(img);
+                if (imageData.width % 32 > 0 || imageData.width % 32 > 0) {
+                    alert('the input image must be able to split into 32 * 32 blocks!');
+                    return
                 }
+                nRow = Math.round(imageData.height / 32);
+                nCol = Math.round(imageData.width / 32);
+
+                alphaThreshold = parseInt(document.getElementById('alphaThreshold').value);
+                colorDownsamplingRate = parseInt(document.getElementById('downsampleRate').value);
+
+                let opaqueBytes = downsampleImage(imageData, alphaThreshold, colorDownsamplingRate);
+                
+                if (document.getElementById('deltaE').checked) {
+                    metric = 'delta-e';
+                }
+                else if (document.getElementById('euclidean').checked) {
+                    metric = 'euclidean';
+                }
+
+                let maxIter = document.getElementById('maxIter').value;
+                worker.postMessage({
+                    opaqueBytes: opaqueBytes,
+                    paletteGamut: paletteGamut,
+                    metricType: metric,
+                    maxIter: maxIter
+                })
                 },
               { maxWidth: 600 } // Options
             )
@@ -219,23 +253,23 @@ namespace app {
         return context
     }
 
-    function findPalette(
-        opaqueBytes: [number, number, number][], 
-        paletteGamut: [number, number, number][], 
-        metric: (rgbA: any, rgbB: any) => number
-        ): [number, number, number][] {
-        let maxIter = document.getElementById('maxIter').value;
-        let paletteGenerator = new pMedian.GA(
-            opaqueBytes, 
-            paletteGamut, 
-            15, 
-            metric, 
-            Color.rgb2hex, 
-            Color.hex2rgb, 
-            maxIter);
-        let palette = paletteGenerator.pMedian();
-        return palette;
-    }
+    // function findPalette(
+    //     opaqueBytes: [number, number, number][], 
+    //     paletteGamut: [number, number, number][], 
+    //     metric: (rgbA: any, rgbB: any) => number
+    //     ): [number, number, number][] {
+    //     let maxIter = document.getElementById('maxIter').value;
+    //     let paletteGenerator = new pMedian.GA(
+    //         opaqueBytes, 
+    //         paletteGamut, 
+    //         15, 
+    //         metric, 
+    //         Color.rgb2hex, 
+    //         Color.hex2rgb, 
+    //         maxIter);
+    //     let palette = paletteGenerator.pMedian();
+    //     return palette;
+    // }
 
     function downsampleImage(imageData: any, alphaThreshold: number, colorDownsamplingRate: number) {
         let opaqueBytes = new Array<[number, number, number]>();
@@ -270,12 +304,14 @@ namespace app {
     }
 	
 	function appendHeading(text: string): void {
+        let outputElem = document.getElementById("output") as HTMLElement;
 		let h2 = outputElem.appendChild(document.createElement("h2"));
 		h2.textContent = text;
 	}
 	
 	
 	function appendCanvas(caption: string): HTMLCanvasElement {
+        let outputElem = document.getElementById("output") as HTMLElement;
 		let p = outputElem.appendChild(document.createElement("p"));
 		p.textContent = caption + ":";
 		let result = document.createElement("canvas");
@@ -300,5 +336,5 @@ namespace app {
 	
 	
 	main();
-	
-}
+
+    
