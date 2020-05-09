@@ -93,12 +93,14 @@ function test() {
             figure.appendChild(img);
             ({ imageHeight, imageWidth, originalContext } = createOriginalCanvas(img));
             originalContext.drawImage(img, 0, 0);
-            if (imageHeight % BLOCK_SIZE > 0 || imageWidth % BLOCK_SIZE > 0) {
-                alert('the input image must be able to split into 32 * 32 blocks!');
-                return;
-            }
+            // if (imageHeight % BLOCK_SIZE > 0 || imageWidth % BLOCK_SIZE > 0) {
+            //     alert('the input image must be able to split into 32 * 32 blocks!');
+            //     return
+            // }
             nRow = Math.round(imageHeight / BLOCK_SIZE);
             nCol = Math.round(imageWidth / BLOCK_SIZE);
+            imageHeight = nRow * BLOCK_SIZE;
+            imageWidth = nCol * BLOCK_SIZE;
             convertedContext = createConvertedCanvas(originalContext, imageWidth, imageHeight);
             alphaThreshold = parseInt(document.getElementById('alphaThreshold').value);
             metric = getMetricType();
