@@ -14,4 +14,4 @@ Progess
 1. Analyze the format of Animal Crossing QR codes(90%)
 2. Find the proper palette for any uploaded image(completed)
 3. Generate QR codes(nayuki-lib)
-4. web UI(65%)
+4. web UI(90%)
