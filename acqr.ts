@@ -1,4 +1,5 @@
 "use strict";
+    const BLOCK_SIZE = 32;
 
     function main(): void {
         // default values
@@ -26,7 +27,11 @@
         let progress = document.getElementById("progress");
         let alphaThreshold: number;
         let metric: string;
-        let imageData;
+        let paletteType: string;
+        let originalContext;
+        let convertedContext;
+        let imageHeight: number;
+        let imageWidth: number;
         let nRow: number;
         let nCol: number;
         let paletteGamut = new Array<[number, number, number]>();
@@ -40,33 +45,63 @@
                 updateProgress(progress, e.data.contents);
             }
             else if (type === 'result') {
-                let palette = e.data.contents;
-                let context;
-                if (metric === 'euclidean') {
-                    context = applyPalette(imageData, alphaThreshold, palette, Color.EuclideanColorDistance);
-                }
-                else {
-                    context = applyPalette(imageData, alphaThreshold, palette, Color.deltaE);
-                }
-                
-                for (let rowIdx = 0; rowIdx < nRow; rowIdx++) {
-                    for ( let colIdx = 0; colIdx < nCol; colIdx++) {
-                        let blockImageData = context.getImageData(
-                            32 * colIdx, 32 * rowIdx,
-                            32, 32
-                        )
-                        let bytes = makeQrContents(palette, blockImageData);
-                        qr = QrCode.encodeSegments(
-                            [qrcodegen.QrSegment.makeBytes(bytes)], 
-                            QrCode.Ecc.MEDIUM, 19, 19
-                        )
-                        qr.drawCanvas(6, 2, appendCanvas(`(${rowIdx}, ${colIdx})`));
+                // global palette
+                if (paletteType === 'global') {
+                    let palette = e.data.contents;
+                    let box: [number, number, number, number] = [0, 0, imageWidth, imageHeight];
+                    if (metric === 'euclidean') {
+                        applyPalette(convertedContext, box, alphaThreshold, palette, Color.EuclideanColorDistance);
                     }
-                };
+                    else {
+                        applyPalette(convertedContext, box, alphaThreshold, palette, Color.deltaE);
+                    }
+                    
+                    for (let row = 0; row < nRow; row++) {
+                        for ( let col = 0; col < nCol; col++) {
+                            let blockImageData = convertedContext.getImageData(
+                                BLOCK_SIZE * col, BLOCK_SIZE * row,
+                                BLOCK_SIZE, BLOCK_SIZE
+                            );
+                            let bytes = makeQrContents(palette, blockImageData);
+                            qr = QrCode.encodeSegments(
+                                [qrcodegen.QrSegment.makeBytes(bytes)], 
+                                QrCode.Ecc.MEDIUM, 19, 19
+                            );
+                            qr.drawCanvas(6, 2, appendCanvas(`(${row}, ${col})`));
+                        }
+                    };
 
-                // enable the input again after conversion
-                document.getElementById('file-input').disabled = false;
-                updateProgress(progress, 'Done!');
+                    // enable the input again after conversion
+                    document.getElementById('file-input').disabled = false;
+                    updateProgress(progress, 'Done!');
+                }
+                else if (paletteType === 'local') {
+                    let palette = e.data.contents;
+                    let row = e.data.position[0]
+                    let col = e.data.position[1]
+                    let box: [number, number, number, number] = [
+                        BLOCK_SIZE * col, BLOCK_SIZE * row,
+                        BLOCK_SIZE, BLOCK_SIZE
+                    ];
+
+                    if (metric === 'euclidean') {
+                        applyPalette(convertedContext, box, alphaThreshold, palette, Color.EuclideanColorDistance);
+                    }
+                    else {
+                        applyPalette(convertedContext, box, alphaThreshold, palette, Color.deltaE);
+                    }
+
+                    let blockImageData = convertedContext.getImageData(
+                        BLOCK_SIZE * col, BLOCK_SIZE * row,
+                        BLOCK_SIZE, BLOCK_SIZE
+                    );
+                    let bytes = makeQrContents(palette, blockImageData);
+                    qr = QrCode.encodeSegments(
+                        [qrcodegen.QrSegment.makeBytes(bytes)], 
+                        QrCode.Ecc.MEDIUM, 19, 19
+                    );
+                    qr.drawCanvas(6, 2, appendCanvas(`(${row}, ${col})`));
+                }
             }
         }
 
@@ -80,38 +115,105 @@
                 p.textContent = "Original:";
                 let figure = document.getElementById("output").appendChild(document.createElement("figure"));
                 figure.appendChild(img);
-                imageData = readImage(img);
-                if (imageData.width % 32 > 0 || imageData.width % 32 > 0) {
+
+                ({ imageHeight, imageWidth, originalContext } = createOriginalCanvas(img));
+                originalContext.drawImage(img, 0, 0);
+
+                if (imageHeight % BLOCK_SIZE > 0 || imageWidth % BLOCK_SIZE > 0) {
                     alert('the input image must be able to split into 32 * 32 blocks!');
                     return
                 }
-                nRow = Math.round(imageData.height / 32);
-                nCol = Math.round(imageData.width / 32);
+                nRow = Math.round(imageHeight / BLOCK_SIZE);
+                nCol = Math.round(imageWidth / BLOCK_SIZE);
+
+                convertedContext = createConvertedCanvas(originalContext, imageWidth, imageHeight);
 
                 alphaThreshold = parseInt(document.getElementById('alphaThreshold').value);
+                metric = getMetricType();
+                paletteType = getPaletteType();
                 let mode = document.getElementById('colorDownsampleMode').value;
-
-                let opaqueBytes = downsampleImage(imageData, alphaThreshold, mode);
-                
-                if (document.getElementById('deltaE').checked) {
-                    metric = 'delta-e';
-                }
-                else if (document.getElementById('euclidean').checked) {
-                    metric = 'euclidean';
-                }
-
                 let maxIter = document.getElementById('maxIter').value;
-                worker.postMessage({
-                    opaqueBytes: opaqueBytes,
-                    paletteGamut: paletteGamut,
-                    metricType: metric,
-                    maxIter: maxIter
-                })
+
+                if (paletteType === 'global') {
+                    let opaqueBytes = downsampleImage(
+                        originalContext.getImageData(0, 0, imageWidth, imageHeight), 
+                        alphaThreshold, mode
+                    );
+                    worker.postMessage({
+                        opaqueBytes: opaqueBytes,
+                        paletteGamut: paletteGamut,
+                        metricType: metric,
+                        maxIter: maxIter,
+                        position: [0, 0]
+                    })
+                }
+                else if (paletteType === 'local') {
+                    for (let row = 0; row < nRow; row++) {
+                        for (let col = 0; col < nCol; col++) {
+                            let opaqueBytes = downsampleImage(
+                                originalContext.getImageData(
+                                    col * BLOCK_SIZE, row * BLOCK_SIZE, 
+                                    BLOCK_SIZE, BLOCK_SIZE
+                                ), 
+                                alphaThreshold, mode
+                            );
+                            worker.postMessage({
+                                opaqueBytes: opaqueBytes,
+                                paletteGamut: paletteGamut,
+                                metricType: metric,
+                                maxIter: maxIter,
+                                position: [row, col]
+                            })
+                        }
+                    }
+                }
                 },
               { maxWidth: 600 } // Options
             )
         }
     }
+
+function createOriginalCanvas(img: any) {
+    var canvas = document.createElement('canvas');
+    let imageHeight = img.height;
+    let imageWidth = img.width;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    let originalContext = canvas.getContext('2d');
+    return { imageHeight, imageWidth, originalContext };
+}
+
+function createConvertedCanvas(originalContext: any, width: number, height: number) {
+    let imageData = originalContext.getImageData(0, 0, width, height);
+    let convertedCanvas = appendCanvas('Converted');
+    convertedCanvas.width = imageData.width;
+    convertedCanvas.height = imageData.height;
+    let context = convertedCanvas.getContext('2d');
+    context.putImageData(imageData, 0, 0);
+    return context
+}
+
+function getMetricType() {
+    let metric = 'delta-e';
+    if (document.getElementById('deltaE').checked) {
+        metric = 'delta-e';
+    }
+    else if (document.getElementById('euclidean').checked) {
+        metric = 'euclidean';
+    }
+    return metric;
+}
+
+function getPaletteType() {
+    let palette = 'global';
+    if (document.getElementById('globalPalette').checked) {
+        palette = 'global';
+    }
+    else if (document.getElementById('localPalette').checked) {
+        palette = 'local';
+    }
+    return palette;
+}
 
     function updateProgress(scrollable: any, content: string): void {
         let p = scrollable.appendChild(document.createElement("p"));
@@ -224,17 +326,14 @@
     }
 
     function applyPalette(
-        imageData: any, 
+        context: any,
+        box: [number, number, number, number],
         alphaThreshold: number, 
         palette: [number, number, number][], 
         metric: (rgbA: any, rgbB: any) => number
         ) {
-        var canvas = appendCanvas('Converted');
-        canvas.width = imageData.width;
-        canvas.height = imageData.height;
-        var context = canvas.getContext('2d');
-        var newImageData = context.createImageData(imageData.width, imageData.height);
-        for (let i = 0; i < newImageData.data.length; i += 4) {
+        let imageData = context.getImageData(box[0], box[1], box[2], box[3]);
+        for (let i = 0; i < imageData.data.length; i += 4) {
             if (imageData.data[i + 3] > alphaThreshold) {
                 let thisColor = [
                     imageData.data[i + 0],
@@ -250,17 +349,16 @@
                         closestColor = color;
                     }
                 });
-                newImageData.data[i + 0] = closestColor[0];
-                newImageData.data[i + 1] = closestColor[1];
-                newImageData.data[i + 2] = closestColor[2];
-                newImageData.data[i + 3] = 255;
+                imageData.data[i + 0] = closestColor[0];
+                imageData.data[i + 1] = closestColor[1];
+                imageData.data[i + 2] = closestColor[2];
+                imageData.data[i + 3] = 255;
             }
             else {
-                newImageData.data[i + 3] = 0;
+                imageData.data[i + 3] = 0;
             }
         }
-        context.putImageData(newImageData, 0, 0);
-        return context
+        context.putImageData(imageData, box[0], box[1]);
     }
 
     // function findPalette(
@@ -289,17 +387,8 @@
                 opaqueBytes.push(downsamplePixel(imageData.data.slice(i, i + 3), mode));
             }
         }
+        console.log('lab')
         return opaqueBytes;
-    }
-
-    function readImage(img: any) {
-        var canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        var context = canvas.getContext('2d');
-        context.drawImage(img, 0, 0);
-        let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        return imageData;
     }
 
     // http://threadlocalmutex.com/?page_id=60
@@ -307,6 +396,7 @@
         color: [number, number, number],
         mode: string 
     ): [number, number, number] {
+        // color = Color.rgb2lab(color);
         let newColor: [number, number, number] = [0, 0, 0];
         if (mode === '4bit') {
             for (let i = 0; i < color.length; i++) {
@@ -335,6 +425,9 @@
         else {
             newColor = color;
         }
+
+        // newColor = Color.lab2rgb(newColor)
+        // return [newColor[0], newColor[1], newColor[2]]
         return newColor
     }
 	

@@ -20,7 +20,8 @@ onmessage = function (e) {
     let palette = findPalette(e.data.opaqueBytes, e.data.paletteGamut, e.data.metricType, e.data.maxIter);
     postMessage({
         type: 'result',
-        contents: palette
+        contents: palette,
+        position: e.data.position
     });
 };
 //# sourceMappingURL=paletteWorker.js.map

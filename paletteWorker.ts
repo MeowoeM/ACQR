@@ -41,6 +41,7 @@ onmessage = function(e) {
     );
     postMessage({
         type: 'result',
-        contents: palette
+        contents: palette,
+        position: e.data.position
     });
 }
